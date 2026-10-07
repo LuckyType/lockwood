@@ -1,0 +1,30 @@
+# Renders Lockwood's own dependency tree (and the sample gallery) with the action in this repository.
+name: Dependency tree
+on:
+  push:
+    branches: [main]
+    paths: ['package-lock.json', 'src/**', 'bin/**', 'samples/**', 'action.yml', '.github/workflows/tree.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  tree:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render this repository's tree
+        uses: ./
+        with:
+          output: docs/tree.png
+          badge: docs/badge.svg
+          commit: 'false'
+      - name: Render the sample gallery
+        run: node test/gallery.js
+      - name: Commit when anything changed
+        run: |
+          git add docs
+          if git diff --cached --quiet; then echo "Nothing changed."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update dependency tree images"
+          git push
