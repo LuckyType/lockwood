@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: LuckyType/lockwood@main
+      - uses: LuckyType/lockwood@v1
         with:
           style: oak            # oak | pine | willow | sakura | bonsai
           badge: .github/lockwood/badge.svg
