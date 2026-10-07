@@ -1,0 +1,29 @@
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "tiny-cli"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "click" },
+    { name = "tomli-w" },
+]
+
+[[package]]
+name = "click"
+version = "8.1.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "platform_system == 'Windows'" },
+]
+
+[[package]]
+name = "colorama"
+version = "0.4.6"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "tomli-w"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }

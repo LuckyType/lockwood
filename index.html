@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Grow an animated pixel-art tree from your lockfile. Each package is a branch; hover to trace dependencies.">
+<title>Lockwood</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* Layout: full-bleed WebGL canvas; HUD panels pinned to the corners, stacking to a single column on phones. */
+:root {
+  --bg: #f5eee0;         /* beige white, matches the day sky */
+  --panel: rgba(247, 243, 230, 0.92);
+  --panel-edge: #5a4a3a;
+  --fg: #2b2117;
+  --muted: #6f5f4d;
+  --accent: #b8571f;     /* bark ember */
+  --leaf: #3f8a3a;
+  --gold: #e3b341;
+  --sky: #cfe3ea;
+  --sky-low: #e9d9b8;
+  --ground: #6f9c4b;
+  --soil: #5f4630;
+  --display: "Press Start 2P", "VT323", monospace;
+  --body: "VT323", "Courier New", monospace;
+  --dep: #7fe08a;
+  --src: #8ab4ff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #f5eee0; --panel: rgba(16, 20, 36, 0.9); --panel-edge: #8b9bb8; --fg: #e6e9f2; --muted: #9aa5bd;
+    --accent: #f0a34a; --leaf: #5fc457; --gold: #ffd166; --sky: #0c1020; --sky-low: #2a2f55; --ground: #2f5b3a; --soil: #2b2118;
+    --dep: #7fe08a; --src: #8ab4ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #f5eee0; --panel: rgba(16, 20, 36, 0.9); --panel-edge: #8b9bb8; --fg: #e6e9f2; --muted: #9aa5bd;
+  --accent: #f0a34a; --leaf: #5fc457; --gold: #ffd166; --sky: #0c1020; --sky-low: #2a2f55; --ground: #2f5b3a; --soil: #2b2118;
+  --dep: #7fe08a; --src: #8ab4ff; color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 19px; line-height: 1.25; overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+.hud { position: fixed; inset: 0; pointer-events: none; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); grid-template-rows: auto 1fr auto; gap: 12px; }
+.panel { pointer-events: auto; background: var(--panel); color: var(--fg); border: 3px solid var(--panel-edge); box-shadow: 4px 4px 0 var(--panel-edge); padding: 12px 14px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+#head { grid-column: 1; grid-row: 1; justify-self: start; max-width: 460px; }
+#head h1 { font-family: var(--display); font-size: 18px; margin: 0 0 8px; letter-spacing: 1px; color: var(--accent); text-wrap: balance; }
+#head p { margin: 0; color: var(--muted); }
+#status { margin-top: 8px; font-size: 21px; }
+#status b { color: var(--leaf); font-weight: normal; }
+#ctrl { grid-column: 2; grid-row: 1 / span 2; justify-self: end; align-self: start; width: 240px; display: flex; flex-direction: column; gap: 10px; max-height: 100%; overflow: auto; }
+#info { grid-column: 1; grid-row: 3; justify-self: start; align-self: end; width: 360px; max-width: 100%; }
+#info h2 { font-family: var(--display); font-size: 12px; margin: 0 0 8px; color: var(--gold); word-break: break-word; }
+#info .ver { color: var(--muted); }
+#info dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; }
+#info dt { color: var(--muted); }
+#info dd { margin: 0; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+#info .hint { color: var(--muted); margin: 0; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 17px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: 1px; border: 1px solid var(--panel-edge); }
+.legend .l-hov::before { background: var(--gold); }
+.legend .l-dep::before { background: var(--dep); }
+.legend .l-src::before { background: var(--src); }
+label.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+label.row > span { color: var(--muted); }
+select, button, input[type="range"] { font-family: var(--body); font-size: 18px; color: var(--fg); }
+select { background: var(--panel); border: 2px solid var(--panel-edge); padding: 2px 4px; max-width: 140px; }
+button { background: var(--accent); color: #fff8ec; border: 2px solid var(--panel-edge); box-shadow: 2px 2px 0 var(--panel-edge); padding: 4px 10px; cursor: pointer; }
+button.ghost { background: var(--panel); color: var(--fg); }
+button:active { transform: translate(2px, 2px); box-shadow: none; }
+button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 1px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+input[type="range"] { width: 110px; accent-color: var(--accent); }
+#drawer { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: grid; place-items: center; padding: 16px; z-index: 5; }
+#drawer .panel { width: 560px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; max-height: 90vh; }
+#drawer h2 { font-family: var(--display); font-size: 13px; margin: 0; color: var(--accent); }
+#drawer textarea { font-family: var(--body); font-size: 16px; width: 100%; box-sizing: border-box; min-height: 220px; flex: 1; background: var(--panel); color: var(--fg); border: 2px solid var(--panel-edge); padding: 8px; resize: vertical; }
+#drop { border: 2px dashed var(--panel-edge); padding: 10px; text-align: center; color: var(--muted); }
+#drop.over { background: rgba(227,179,65,0.25); }
+#err { color: #d2452f; margin: 0; min-height: 1.2em; }
+#tip { position: fixed; pointer-events: none; background: var(--panel); border: 2px solid var(--panel-edge); padding: 2px 8px; font-size: 18px; transform: translate(12px, -28px); white-space: nowrap; z-index: 3; }
+#menuBtn { display: none; pointer-events: auto; grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }
+@media (max-width: 720px) {
+  .hud { grid-template-columns: minmax(0, 1fr) auto; }
+  #head { max-width: none; grid-column: 1 / span 2; grid-row: 2; align-self: start; }
+  #head p { display: none; }
+  #menuBtn { display: block; }
+  #ctrl { grid-column: 1 / span 2; grid-row: 2; justify-self: stretch; width: auto; margin-top: 44px; }
+  #ctrl[hidden] { display: none !important; }
+  #info { grid-column: 1 / span 2; width: auto; }
+  #info dl { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
+</style>
+
+<div id="stage"></div>
+<div class="hud">
+  <section id="head" class="panel">
+    <h1>Lockwood</h1>
+    <p>A dependency tree grown from your lockfile. Each package is a branch, each nesting level a fork. Drag to turn, scroll to zoom.</p>
+    <div id="status">Growing&hellip;</div>
+  </section>
+  <button id="menuBtn" class="ghost" type="button" aria-controls="ctrl" aria-expanded="true">Controls</button>
+  <section id="ctrl" class="panel">
+    <label class="row" for="view"><span>View</span><select id="view"><option value="2d">Flat 2D</option><option value="3d">Orbit 3D</option></select></label>
+    <label class="row" for="style"><span>Tree style</span><select id="style">
+      <option value="oak">Oak</option><option value="pine">Pine</option><option value="willow">Willow</option><option value="sakura">Sakura</option><option value="bonsai">Bonsai</option>
+    </select></label>
+    <label class="row" for="sample"><span>Sample lock</span><select id="sample">
+      <option value="mature">uv: orchard (50)</option><option value="sapling">uv: tiny-cli (4)</option><option value="npm">npm: ledger-api (37)</option><option value="bun">bun: ledger-api (37)</option><option value="yarn1">yarn classic (9)</option><option value="yarn2">yarn berry (4)</option><option value="pnpm">pnpm (4)</option><option value="poetry">poetry (9)</option><option value="pipfile">Pipfile (5)</option><option value="cargo">Cargo (9)</option><option value="gemfile">Gemfile (12)</option><option value="composer">composer (11)</option><option value="old">synthetic (160)</option><option value="ancient">synthetic (420)</option><option value="custom" hidden>your lockfile</option>
+    </select></label>
+    <label class="row" for="pixel"><span>Pixel size</span><input id="pixel" type="range" min="2" max="7" step="1" value="2"></label>
+    <label class="row" for="outlines"><span>Outlines</span><input id="outlines" type="checkbox" checked></label>
+    <label class="row" for="wind"><span>Wind</span><input id="wind" type="checkbox" checked></label>
+    <div class="btns"><button id="loadBtn" type="button">Load lockfile</button><button id="regrow" class="ghost" type="button">Regrow</button></div>
+  </section>
+  <section id="info" class="panel">
+    <div id="infoBody"><p class="hint">Hover a branch to trace what it needs and who needs it. Click to pin.</p></div>
+    <div class="legend"><span class="l-hov">hovered</span><span class="l-dep">its dependencies</span><span class="l-src">needed by</span></div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+<div id="drawer" hidden>
+  <div class="panel" role="dialog" aria-labelledby="drawerTitle">
+    <h2 id="drawerTitle">Load a lockfile</h2>
+    <div id="drop">Drop a lockfile here, or <label style="text-decoration:underline;cursor:pointer">choose a file<input id="file" type="file" accept=".lock,.toml,.json,.yaml,.yml,text/plain,application/json" hidden></label></div>
+    <textarea id="lockText" spellcheck="false" placeholder="&hellip;or paste the contents of your lockfile here"></textarea>
+    <p class="hint" style="margin:0;color:var(--muted)">Supported: <span id="formats"></span>. Nothing leaves your browser.</p>
+    <p id="err"></p>
+    <div class="btns"><button id="grow" type="button">Grow</button><button id="cancel" class="ghost" type="button">Cancel</button></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<script type="module" src="./src/app.js"></script>
+</body>
+</html>

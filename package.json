@@ -1,0 +1,43 @@
+{
+  "name": "lockwood",
+  "version": "0.1.0",
+  "description": "Grow a pixel-art dependency tree from your lockfile. Web app plus a dependency-free CLI for READMEs and CI.",
+  "type": "module",
+  "bin": {
+    "lockwood": "bin/lockwood.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "index.html",
+    "action.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test/run.js",
+    "render": "node bin/lockwood.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LuckyType/lockwood.git"
+  },
+  "keywords": [
+    "dependencies",
+    "lockfile",
+    "visualization",
+    "pixel-art",
+    "uv",
+    "npm",
+    "bun",
+    "yarn",
+    "pnpm",
+    "poetry",
+    "cargo",
+    "bundler",
+    "composer"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
