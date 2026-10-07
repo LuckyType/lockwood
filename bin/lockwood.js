@@ -5,7 +5,7 @@ import { dirname, extname, resolve } from 'node:path';
 import { buildGraph, FORMATS } from '../src/lockfile.js';
 import { layoutTree, layoutDecor, STYLES } from '../src/layout.js';
 import { render, toSvg } from '../src/raster.js';
-import { encodePng } from '../src/png.js';
+import { encodePng, pngPixelsEqual } from '../src/png.js';
 
 const HELP = `lockwood — grow a pixel-art tree from a lockfile
 
@@ -71,14 +71,14 @@ function main() {
   if (bg !== null && bg !== 'sky' && Number.isNaN(bg)) throw new Error(`--bg must be transparent, sky or #rrggbb (got ${o.bg}).`);
   const img = render(stats, decor, { width: o.width, height: o.height, bg, outline: o.outline });
   const outPath = resolve(o.out); mkdirSync(dirname(outPath), { recursive: true });
-  const ext = extname(outPath).toLowerCase();
+  const ext = extname(outPath).toLowerCase(); let unchanged = false;
   if (ext === '.svg') writeFileSync(outPath, toSvg(img, o.scale, `Dependency tree of ${stats.rootName}: ${stats.count} packages`));
-  else if (ext === '.png') writeFileSync(outPath, encodePng(img, o.scale));
+  else if (ext === '.png') { const old = existsSync(outPath) ? readFileSync(outPath) : null; if (old && pngPixelsEqual(old, img, o.scale)) unchanged = true; else writeFileSync(outPath, encodePng(img, o.scale)); }
   else throw new Error(`--out must end in .png or .svg (got ${o.out}).`);
-  if (o.badge) { mkdirSync(dirname(resolve(o.badge)), { recursive: true }); writeFileSync(resolve(o.badge), badgeSvg(stats)); }
-  const summary = { format: graph.format, ecosystem: graph.ecosystem, root: stats.rootName, packages: stats.count, depth: stats.depth, stage: stats.age.stage, years: stats.age.years, style: o.style, seed: o.seed, out: o.out, width: o.width * o.scale, height: o.height * o.scale, badge: o.badge || undefined };
+  if (o.badge) { const bp = resolve(o.badge), svg = badgeSvg(stats); mkdirSync(dirname(bp), { recursive: true }); if (!existsSync(bp) || readFileSync(bp, 'utf8') !== svg) writeFileSync(bp, svg); }
+  const summary = { format: graph.format, ecosystem: graph.ecosystem, root: stats.rootName, packages: stats.count, depth: stats.depth, stage: stats.age.stage, years: stats.age.years, style: o.style, seed: o.seed, out: o.out, width: o.width * o.scale, height: o.height * o.scale, badge: o.badge || undefined, unchanged };
   if (o.json) process.stdout.write(JSON.stringify(summary, null, 2) + '\n');
-  else process.stdout.write(`${summary.stage[0].toUpperCase() + summary.stage.slice(1)} ${o.style} from ${graph.format}: ${stats.count} packages, ${stats.depth} levels deep, ${stats.age.years} years old -> ${o.out} (${summary.width}x${summary.height})${o.badge ? `, badge -> ${o.badge}` : ''}\n`);
+  else process.stdout.write(`${summary.stage[0].toUpperCase() + summary.stage.slice(1)} ${o.style} from ${graph.format}: ${stats.count} packages, ${stats.depth} levels deep, ${stats.age.years} years old -> ${o.out} (${summary.width}x${summary.height})${unchanged ? ', pixels unchanged' : ''}${o.badge ? `, badge -> ${o.badge}` : ''}\n`);
 }
 
 try { main(); } catch (e) { process.stderr.write(`lockwood: ${e.message}\n`); process.exit(1); }
