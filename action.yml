@@ -1,46 +1,46 @@
 name: Lockwood dependency tree
-description: Render a pixel-art tree of your project's dependencies from its lockfile and commit the image for your README.
+description: "Render a pixel-art tree of your project's dependencies from its lockfile and commit the image for your README."
 author: LuckyType
 branding:
   icon: git-branch
   color: green
 inputs:
   lockfile:
-    description: Path to the lockfile. Leave empty to pick the first of uv.lock, poetry.lock, Pipfile.lock, package-lock.json, bun.lock, yarn.lock, pnpm-lock.yaml, Cargo.lock, Gemfile.lock or composer.lock found in the repository root.
+    description: "Path to the lockfile. Leave empty to pick the first of uv.lock, poetry.lock, Pipfile.lock, package-lock.json, bun.lock, yarn.lock, pnpm-lock.yaml, Cargo.lock, Gemfile.lock or composer.lock found in the repository root."
     default: ''
   output:
-    description: Where to write the image (.png or .svg).
+    description: "Where to write the image (.png or .svg)."
     default: .github/lockwood/tree.png
   badge:
-    description: Optional path for a shields-style SVG badge with the tree's age and package count. Empty disables it.
+    description: "Optional path for a shields-style SVG badge with the tree's age and package count. Empty disables it."
     default: ''
   style:
-    description: Tree style. One of oak, pine, willow, sakura, bonsai.
+    description: "Tree style. One of oak, pine, willow, sakura, bonsai."
     default: oak
   width:
-    description: Pixel-grid width before scaling.
+    description: "Pixel-grid width before scaling."
     default: '400'
   height:
-    description: Pixel-grid height before scaling.
+    description: "Pixel-grid height before scaling."
     default: '300'
   scale:
-    description: Upscale factor for the written image.
+    description: "Upscale factor for the written image."
     default: '2'
   background:
-    description: transparent, sky, or a #rrggbb colour.
+    description: "transparent, sky, or a #rrggbb colour."
     default: transparent
   seed:
-    description: Layout seed. 0 is the canonical tree; any other number grows a different one.
+    description: "Layout seed. 0 is the canonical tree; any other number grows a different one."
     default: '0'
   commit:
-    description: Commit and push the image when it changed. Needs `permissions: contents: write` on the job.
+    description: "Commit and push the image when it changed. Needs `permissions: contents: write` on the job."
     default: 'true'
   commit-message:
-    description: Commit message used when the image changed.
+    description: "Commit message used when the image changed."
     default: 'chore: update dependency tree'
 outputs:
   summary:
-    description: One-line summary of the rendered tree.
+    description: "One-line summary of the rendered tree."
     value: ${{ steps.render.outputs.summary }}
 runs:
   using: composite
